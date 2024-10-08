@@ -13,10 +13,10 @@ datasource db {
 model Note {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   title     String
-  content   String?
+  content   String? //because this might be optional that's why we keep ?
   userId    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@map("notes")
+  @@map("notes") //the connection will be called notes.
 }
