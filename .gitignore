@@ -30,7 +30,12 @@ yarn-error.log*
 .env
 # vercel
 .vercel
-
+.idea
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+/.idea/indexLayout.xml
+/.idea/prettier.xml
+/.idea/inspectionProfiles/Project_Default.xml
+/.idea/projectSettingsUpdater.xml
+/.idea/workspace.xml
