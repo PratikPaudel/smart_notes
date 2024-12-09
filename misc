@@ -1,0 +1,86 @@
+[Fact]
+public async Task UploadMediaAsync_WhenAllParametersValid_ReturnsUri()
+{
+    // Arrange
+    var repository = Substitute.For<IInspectionRepository>();
+    var blobServiceClient = Substitute.For<BlobServiceClient>();
+    var containerClient = Substitute.For<BlobContainerClient>();
+    var blobClient = Substitute.For<BlobClient>();
+    var formFile = Substitute.For<IFormFile>();
+    
+    var expectedUri = new Uri("https://test.blob.core.windows.net/test-blob");
+    
+    // Setup the chain of calls
+    blobClient.Uri.Returns(expectedUri);
+    
+    // Setup the form file to return a stream
+    var memoryStream = new MemoryStream();
+    formFile.OpenReadStream().Returns(memoryStream);
+    
+    // Setup the container client
+    containerClient.GetBlobClient(Arg.Any<string>()).Returns(blobClient);
+    containerClient
+        .CreateIfNotExistsAsync(
+            Arg.Any<PublicAccessType>(),
+            Arg.Any<IDictionary<string, string>>(),
+            Arg.Any<CancellationToken>())
+        .Returns(Task.FromResult(Response.FromValue(
+            BlobsModelFactory.BlobContainerInfo(ETag.All), 
+            new Mock<Response>().Object)));
+            
+    // Setup the blob service client
+    blobServiceClient
+        .GetBlobContainerClient(Arg.Any<string>())
+        .Returns(containerClient);
+
+    var service = new InspectionService(blobServiceClient, repository);
+
+    // Setup blob upload
+    blobClient
+        .UploadAsync(
+            Arg.Any<Stream>(),
+            Arg.Any<bool>(),
+            Arg.Any<CancellationToken>())
+        .Returns(Task.FromResult(Response.FromValue(
+            BlobsModelFactory.BlobContentInfo(ETag.All), 
+            new Mock<Response>().Object)));
+
+    // Act
+    var result = await service.UploadMediaAsync(
+        "TEST123",
+        "safety",
+        "form1",
+        "1",
+        formFile,
+        "test.jpg",
+        1,
+        1);
+
+    // Assert
+    Assert.NotNull(result);
+    Assert.Equal(expectedUri.ToString(), result);
+    
+    // Verify calls
+    await containerClient
+        .Received(1)
+        .CreateIfNotExistsAsync(
+            Arg.Any<PublicAccessType>(),
+            Arg.Any<IDictionary<string, string>>(),
+            Arg.Any<CancellationToken>());
+
+    await blobClient
+        .Received(1)
+        .UploadAsync(
+            Arg.Any<Stream>(),
+            Arg.Any<bool>(),
+            Arg.Any<CancellationToken>());
+
+    await repository
+        .Received(1)
+        .UpdateAnswerJsonAsync(
+            Arg.Is<int>(x => x == 1),
+            Arg.Is<string>(x => x == "test.jpg"),
+            Arg.Is<string>(x => x == expectedUri.ToString()),
+            Arg.Is<int>(x => x == 1),
+            Arg.Is<int>(x => x == 1));
+}
